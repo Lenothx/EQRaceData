@@ -12,9 +12,9 @@ namespace EQRaceData
             var raceLines = File.ReadAllLines("racedata.txt");
             var fieldID = new string[80000];
             var fieldName = new string[80000];
-            string fieldType = string.Empty;
             var raceFile = new string[80000];
             var raceIName = new string[80000];
+            string fieldType = string.Empty;
 
             for (int i = 0; i < dbstrLines.Length; i++)
             {
@@ -47,8 +47,8 @@ namespace EQRaceData
                 }
                 else
                 {
-                    raceFile[Int32.Parse(raceFields[0])] += " AND " + raceFields[93];
-                    raceIName[Int32.Parse(raceFields[0])] += " AND " + raceFields[94];
+                    raceFile[Int32.Parse(raceFields[0])] += " & " + raceFields[93];
+                    raceIName[Int32.Parse(raceFields[0])] += " & " + raceFields[94];
                 }
             }
 
