@@ -1,0 +1,14 @@
+*.suo
+*.user
+*.pdb
+*.exe*
+*.vshost.exe.*
+Bin/
+Obj/
+Debug/
+Release/
+.vs/
+
+
+racedata*.txt*
+dbstr_us*.txt*
