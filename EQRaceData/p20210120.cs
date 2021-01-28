@@ -5,20 +5,24 @@ using System.Linq;
 
 namespace EQRaceData
 {
-    class Program
+    class p20210120
     {
-        static void Main(string[] args)
+        static void Main20210120(string[] args)
         {
             // In the January 20, 2021 Patch, they deleted the internal name from the racedata.txt file
+            // This should also make older stuff more accurate to both dbstr + racedata values besides 1 over other
+            // This version is for older file versions
             var dbstrLines = File.ReadAllLines("dbstr_us.txt");
             var raceLines = File.ReadAllLines("racedata.txt");
             Dictionary<int, string> dbstrData = new Dictionary<int, string>(),
                 raceDataFile = new Dictionary<int, string>(),
+                raceDataName = new Dictionary<int, string>(),
                 completeData = new Dictionary<int, string>();
             string fieldType = string.Empty,
                 value = string.Empty,
                 dbstrDataFinal = string.Empty,
-                raceDataFileFinal = string.Empty;
+                raceDataFileFinal = string.Empty,
+                raceDataNameFinal = string.Empty;
 
             // Get dbstr race Data
             for (int i = 0; i < dbstrLines.Length; i++)
@@ -31,7 +35,7 @@ namespace EQRaceData
                 }
             }
 
-            // Get race data file race id and file
+            // Get race data file race id, file and name
             for (int i = 0; i < raceLines.Length; i++)
             {
                 var raceFields = raceLines[i].Split('^');
@@ -39,11 +43,13 @@ namespace EQRaceData
 
                 if (raceDataFile.TryGetValue(raceField, out value))
                 {
-                    raceDataFile[raceField] += $" & " + raceFields[50];
+                    raceDataFile[raceField] += $" & " + raceFields[93];
+                    raceDataName[raceField] += $" & " + raceFields[94];
                 }
                 else
                 {
-                    raceDataFile.Add(raceField, raceFields[50]);
+                    raceDataFile.Add(raceField, raceFields[93]);
+                    raceDataName.Add(raceField, raceFields[94]);
                 }
             }
 
@@ -55,8 +61,9 @@ namespace EQRaceData
 
                 dbstrDataFinal = (dbstrData.TryGetValue(a, out value)) ? dbstrData[a] : "";
                 raceDataFileFinal = (raceDataFile.TryGetValue(a, out value)) ? raceDataFile[a] : "";
+                raceDataNameFinal = (raceDataName.TryGetValue(a, out value)) ? raceDataName[a] : "";
 
-                completeData.Add(a, $"ID: {a} | Name: {dbstrDataFinal} | File: {raceDataFileFinal}");
+                completeData.Add(a, $"ID: {a} | Name: {dbstrDataFinal} | File: {raceDataFileFinal} | Internal Name: {raceDataNameFinal}");
             }
 
             // loop through the dbstr file for races without race data
@@ -67,11 +74,12 @@ namespace EQRaceData
 
                 dbstrDataFinal = (dbstrData.TryGetValue(a, out value)) ? dbstrData[a] : "";
                 raceDataFileFinal = (raceDataFile.TryGetValue(a, out value)) ? raceDataFile[a] : "";
+                raceDataNameFinal = (raceDataName.TryGetValue(a, out value)) ? raceDataName[a] : "";
 
                 // if the key and value doesn't already exist in complete list
                 if (!completeData.TryGetValue(a, out value))
                 {
-                    completeData.Add(a, $"ID: {a} | Name: {dbstrDataFinal} | File: {raceDataFileFinal}");
+                    completeData.Add(a, $"ID: {a} | Name: {dbstrDataFinal} | File: {raceDataFileFinal} | Internal Name: {raceDataNameFinal}");
                 }
             }
 
@@ -87,7 +95,7 @@ namespace EQRaceData
 
             // add a console count
             Console.WriteLine($"Race Data Count {raceDataFile.Count} - Dbstr Data Count {dbstrData.Count}");
-            
+
             // make the cmd be open until closed
             Console.ReadLine();
         }
