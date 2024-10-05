@@ -5,91 +5,101 @@ using System.Linq;
 
 namespace EQRaceData
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            // In the January 20, 2021 Patch, they deleted the internal name from the racedata.txt file
-            var dbstrLines = File.ReadAllLines("dbstr_us.txt");
-            var raceLines = File.ReadAllLines("racedata.txt");
-            Dictionary<int, string> dbstrData = new Dictionary<int, string>(),
-                raceDataFile = new Dictionary<int, string>(),
-                completeData = new Dictionary<int, string>();
-            string fieldType = string.Empty,
-                value = string.Empty,
-                dbstrDataFinal = string.Empty,
-                raceDataFileFinal = string.Empty;
+            // Load data from files
+            var dbstrData = LoadDbstrData("dbstr_us.txt");
+            var raceDataFile = LoadRaceData("racedata.txt");
 
-            // Get dbstr race Data
-            for (int i = 0; i < dbstrLines.Length; i++)
+            // Combine the two dictionaries
+            var completeData = CombineRaceData(dbstrData, raceDataFile);
+            // Write to output file and console
+            WriteDataToFile("racedatacomplete.txt", completeData);
+            // make a MySEQ version of same.
+            var names = ExtractNamesFromFile("racedatacomplete.txt");
+            WriteDataToFile("races.txt", names);
+        }
+
+        private static Dictionary<int, string> LoadDbstrData(string fileName)
+        {
+            return File.ReadLines(fileName)
+                       .Select(line => line.Split('^'))
+                       .Where(fields => fields[1] == "11") // Only keep race data
+                       .ToDictionary(fields => int.Parse(fields[0]), fields => fields[2]);
+        }
+
+        private static Dictionary<int, string> LoadRaceData(string fileName)
+        {
+            return File.ReadLines(fileName)
+                       .Select(line => line.Split('^'))
+                       .GroupBy(fields => int.Parse(fields[0]))
+                       .ToDictionary(group => group.Key, group => string.Join(" & ", group.Select(fields => fields[50])));
+        }
+
+        private static Dictionary<int, string> CombineRaceData(Dictionary<int, string> dbstrData, Dictionary<int, string> raceDataFile)
+        {
+            return dbstrData.Keys.Union(raceDataFile.Keys)
+                                .Distinct()
+                                .ToDictionary(key => key, key =>
+                                {
+                                    var name = dbstrData.ContainsKey(key) ? dbstrData[key] : string.Empty;
+                                    var file = raceDataFile.ContainsKey(key) ? raceDataFile[key] : string.Empty;
+                                    return $"ID: {key} | Name: {name} | File: {file}";
+                                });
+        }
+
+        private static void WriteDataToFile(string fileName, Dictionary<int, string> data)
+        {
+            using var writer = new StreamWriter(fileName);
+            foreach (var entry in data.OrderBy(k => k.Key))
             {
-                var dbstrFields = dbstrLines[i].Split('^');
-                fieldType = dbstrFields[1];
-                if (fieldType == "11")
-                {
-                    dbstrData.Add(Int32.Parse(dbstrFields[0]), dbstrFields[2]);
-                }
+                writer.WriteLine(entry.Value);
+                Console.WriteLine(entry.Value);
             }
 
-            // Get race data file race id and file
-            for (int i = 0; i < raceLines.Length; i++)
-            {
-                var raceFields = raceLines[i].Split('^');
-                int raceField = Int32.Parse(raceFields[0]);
-
-                if (raceDataFile.TryGetValue(raceField, out value))
-                {
-                    raceDataFile[raceField] += $" & " + raceFields[50];
-                }
-                else
-                {
-                    raceDataFile.Add(raceField, raceFields[50]);
-                }
-            }
-
-            // loop through the race file and name data, add blanks if dbstr has no data
-            // then add to a complete list
-            foreach (KeyValuePair<int, string> rData in raceDataFile)
-            {
-                int a = rData.Key;
-
-                dbstrDataFinal = (dbstrData.TryGetValue(a, out value)) ? dbstrData[a] : "";
-                raceDataFileFinal = (raceDataFile.TryGetValue(a, out value)) ? raceDataFile[a] : "";
-
-                completeData.Add(a, $"ID: {a} | Name: {dbstrDataFinal} | File: {raceDataFileFinal}");
-            }
-
-            // loop through the dbstr file for races without race data
-            // then add to a complete list
-            foreach (KeyValuePair<int, string> dData in dbstrData)
-            {
-                int a = dData.Key;
-
-                dbstrDataFinal = (dbstrData.TryGetValue(a, out value)) ? dbstrData[a] : "";
-                raceDataFileFinal = (raceDataFile.TryGetValue(a, out value)) ? raceDataFile[a] : "";
-
-                // if the key and value doesn't already exist in complete list
-                if (!completeData.TryGetValue(a, out value))
-                {
-                    completeData.Add(a, $"ID: {a} | Name: {dbstrDataFinal} | File: {raceDataFileFinal}");
-                }
-            }
-
-            // sort the list by ID then write to a file
-            using (StreamWriter writer = new StreamWriter("racedatacomplete.txt"))
-            {
-                foreach (KeyValuePair<int, string> cData in completeData.OrderBy(k => k.Key))
-                {
-                    writer.WriteLine(cData.Value);
-                    Console.WriteLine(cData.Value);
-                }
-            }
-
-            // add a console count
-            Console.WriteLine($"Race Data Count {raceDataFile.Count} - Dbstr Data Count {dbstrData.Count}");
-            
-            // make the cmd be open until closed
+            Console.WriteLine($"Race Data Count: {data.Count}");
             Console.ReadLine();
+        }
+
+        private static void WriteDataToFile(string filename, IEnumerable<string> data)
+        {
+            using (StreamWriter writer = new StreamWriter(filename))
+            {
+                foreach (var line in data)
+                {
+                    writer.WriteLine(line);
+                }
+            }
+        }
+
+        private static List<string> ExtractNamesFromFile(string filePath)
+        {
+            var names = new List<string>();
+
+            // Read each line from the file
+            foreach (var line in File.ReadLines(filePath))
+            {
+                // Check if the line contains the "| Name: " pattern
+                if (line.Contains("| Name: "))
+                {
+                    // Extract the name portion between "| Name: " and "| File: "
+                    var startIndex = line.IndexOf("| Name: ") + "| Name: ".Length;
+                    var endIndex = line.IndexOf("| File: ", startIndex);
+
+                    // Use the startIndex and endIndex to get the name substring
+                    var name = line.Substring(startIndex, endIndex - startIndex).Trim();
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        name = "UNKNOWN";
+                    }
+                    // Add the extracted name to the list
+                    names.Add(name);
+                }
+            }
+
+            return names;
         }
     }
 }
