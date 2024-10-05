@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace EQRaceData
 {
-    internal class Program
+    internal static class Program
     {
         private static void Main(string[] args)
         {
@@ -44,20 +44,21 @@ namespace EQRaceData
                                 .Distinct()
                                 .ToDictionary(key => key, key =>
                                 {
-                                    var name = dbstrData.ContainsKey(key) ? dbstrData[key] : string.Empty;
-                                    var file = raceDataFile.ContainsKey(key) ? raceDataFile[key] : string.Empty;
+                                    var name = dbstrData.TryGetValue(key, out var value1) ? value1 : string.Empty;
+                                    var file = raceDataFile.TryGetValue(key, out var value) ? value : string.Empty;
                                     return $"ID: {key} | Name: {name} | File: {file}";
                                 });
         }
 
         private static void WriteDataToFile(string fileName, Dictionary<int, string> data)
         {
-            using var writer = new StreamWriter(fileName);
-            foreach (var entry in data.OrderBy(k => k.Key))
-            {
-                writer.WriteLine(entry.Value);
-                Console.WriteLine(entry.Value);
-            }
+            File.WriteAllLines(fileName, data.OrderBy(k => k.Key).Select(entry => entry.Value));
+
+            // Display the output to console using LINQ
+            data.OrderBy(k => k.Key)
+                .Select(entry => entry.Value)
+                .ToList()
+                .ForEach(Console.WriteLine);
 
             Console.WriteLine($"Race Data Count: {data.Count}");
             Console.ReadLine();
@@ -65,41 +66,27 @@ namespace EQRaceData
 
         private static void WriteDataToFile(string filename, IEnumerable<string> data)
         {
-            using (StreamWriter writer = new StreamWriter(filename))
+            using StreamWriter writer = new(filename);
+            foreach (var line in data)
             {
-                foreach (var line in data)
-                {
-                    writer.WriteLine(line);
-                }
+                writer.WriteLine(line);
             }
         }
 
-        private static List<string> ExtractNamesFromFile(string filePath)
+        private static List<string> ExtractNamesFromFile(string racesfile)
         {
-            var names = new List<string>();
+            return File.ReadLines(racesfile)
+                       .Where(line => line.Contains("| Name: "))
+                       .Select(line =>
+                       {
+                           var startIndex = line.IndexOf("| Name: ") + "| Name: ".Length;
+                           var endIndex = line.IndexOf("| File: ", startIndex);
+                           var name = line[startIndex..endIndex].Trim();
 
-            // Read each line from the file
-            foreach (var line in File.ReadLines(filePath))
-            {
-                // Check if the line contains the "| Name: " pattern
-                if (line.Contains("| Name: "))
-                {
-                    // Extract the name portion between "| Name: " and "| File: "
-                    var startIndex = line.IndexOf("| Name: ") + "| Name: ".Length;
-                    var endIndex = line.IndexOf("| File: ", startIndex);
-
-                    // Use the startIndex and endIndex to get the name substring
-                    var name = line.Substring(startIndex, endIndex - startIndex).Trim();
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        name = "UNKNOWN";
-                    }
-                    // Add the extracted name to the list
-                    names.Add(name);
-                }
-            }
-
-            return names;
+                           // Replace blank names with "UNKNOWN"
+                           return string.IsNullOrWhiteSpace(name) ? "UNKNOWN" : name;
+                       })
+                       .ToList();
         }
     }
 }
